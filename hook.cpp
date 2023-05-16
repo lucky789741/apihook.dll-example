@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "hook.h"
-
-#include <iostream>
-#include <iomanip>
+#include "logger.h"
 namespace HOOK
 {
 	FARPROC GetCurrentPrcoessAddress = NULL;
@@ -26,12 +24,14 @@ namespace HOOK
 		HINSTANCE library = LoadLibraryA("kernel32.dll");
 		if (library == NULL) return 0;
 		GetCurrentPrcoessAddress = GetProcAddress(library, "GetCurrentProcess");
-
+		std::string addrString = Logger::getInstance().AddressToHexString((PDWORD_PTR)GetCurrentPrcoessAddress);
+		Logger::getInstance().print("修改的地址:\t"+addrString);
 		//儲存原始14 byte至 GetCurrentProcessOriginalBytes
 		SIZE_T bytesRead = 0;
 		BOOL isreaded = ReadProcessMemory((HANDLE)-1, GetCurrentPrcoessAddress, GetCurrentProcessOriginalBytes, patchSize, &bytesRead);
 		if (isreaded == NULL) return 0;
-
+		std::string hex = Logger::getInstance().BytesInHex(GetCurrentProcessOriginalBytes, patchSize);
+		Logger::getInstance().print("原始位元組:\t"+hex);
 		//使用union將同一塊記憶體上下區段分別存入lo、hi
 		union
 		{
@@ -62,11 +62,8 @@ namespace HOOK
 		memcpy_s(patch + 13, 1, "\xC3", 1);//ret
 
 		//打印
-		for (auto it = std::begin(patch); it < std::end(patch); it++)
-		{
-			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)*it;
-		}
-		std::cout << std::endl;
+		hex = Logger::getInstance().BytesInHex(patch, patchSize);
+		Logger::getInstance().print("修改位元組:\t"+hex);
 
 		BOOL iswritten = WriteProcessMemory((HANDLE)-1, (LPVOID)GetCurrentPrcoessAddress, patch, sizeof(patch), &bytesWritten);
 		return iswritten;
